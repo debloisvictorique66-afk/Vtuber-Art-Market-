@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>VTuber Art Market</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #0B0E17; color: #EDEAF5; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect } = React;
+
+const FONT_IMPORT = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+`;
+
+const BACKEND_URL = "https://vtuber-art-market-backend-hrql.onrender.com";
+
+function getInitData() {
+  return (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) || "";
+}
+
+async function apiCall(path, body) {
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Telegram-Init-Data": getInitData(),
+    },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Error occurred (${res.status})`);
+  return data;
+}
+
+function ArtistPanel({ user, onRefreshUser }) {
+  const [uploads, setUploads] = useState([]);
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleBuySubscription = async () => {
+    setBusy(true);
+    try {
+      const data = await apiCall("/api/subscription/invoice");
+      if (data.invoiceLink && window.Telegram?.WebApp) {
+        window.Telegram.WebApp.openInvoice(data.invoiceLink, (status) => {
+          if (status === "paid") {
+            alert("Subscription activated successfully!");
+            onRefreshUser();
+          }
+        });
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+    setBusy(false);
+  };
+
+  const addUpload = async () => {
+    if (!title.trim() || !price) return;
+    setBusy(true);
+    try {
+      await apiCall("/api/products", { title, category: "Model", priceStars: parseInt(price), fileKey: "mock-key" });
+      setUploads([{ id: `u${Date.now()}`, title, sales: 0, earnedStars: 0 }, ...uploads]);
+      setTitle("");
+      setPrice("");
+      alert("Product successfully added to the store!");
+    } catch (e) {
+      alert(e.message);
+    }
+    setBusy(false);
+  };
+
+  if (!user?.subscriptionActive) {
+    return (
+      <div style={{ padding: "40px 16px", textAlign: "center" }}>
+        <h3 style={{ color: "#EDEAF5", fontFamily: "'Space Grotesk', sans-serif" }}>Subscription Required</h3>
+        <p style={{ color: "#8B8798", fontSize: 13, lineHeight: 1.5 }}>
+          To upload and sell assets on the platform, you must activate a monthly subscription.
+        </p>
+        <button
+          onClick={handleBuySubscription}
+          disabled={busy}
+          style={{
+            width: "100%", marginTop: 14, padding: "13px 0", borderRadius: 14, border: "none",
+            background: "linear-gradient(90deg, #B24BF3, #4BE3F3)", color: "#0B0E17",
+            fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer"
+          }}
+        >
+          {busy ? "Opening Invoice..." : "Activate Subscription"}
+        </button>
+        <p style={{ fontSize: 11, color: "#5C5A6B", marginTop: 12 }}>
+          * Sponsored/partner artists will receive a 1-month promo period automatically.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "4px 16px 90px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 18, color: "#EDEAF5" }}>
+          Artist Dashboard
+        </div>
+        <span style={{ color: "#00FFCC", fontSize: 11, background: "rgba(0,255,204,0.1)", padding: "3px 8px", borderRadius: 8 }}>
+          ✓ Subscription Active (Until: {new Date(user.subscriptionExpiresAt).toLocaleDateString()})
+        </span>
+      </div>
+
+      <div style={{ background: "#141827", borderRadius: 16, padding: 14, marginTop: 14, border: "1px solid rgba(255,255,255,0.06)" }}>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Product Name" style={{ width: "100%", boxSizing: "border-box", padding: "10px", borderRadius: 10, background: "#0F1220", color: "#EDEAF5", marginBottom: 8, border: "1px solid rgba(255,255,255,0.08)" }} />
+        <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price (Stars)" type="number" style={{ width: "100%", boxSizing: "border-box", padding: "10px", borderRadius: 10, background: "#0F1220", color: "#EDEAF5", marginBottom: 12, border: "1px solid rgba(255,255,255,0.08)" }} />
+        <button onClick={addUpload} disabled={busy} style={{ width: "100%", padding: "12px 0", borderRadius: 12, border: "none", background: "linear-gradient(90deg, #B24BF3, #4BE3F3)", color: "#0B0E17", fontWeight: 700, cursor: "pointer" }}>
+          {busy ? "Please wait..." : "Add to Store"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [tab, setTab] = useState("market");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUserStatus = async () => {
+    try {
+      const data = await apiCall("/api/account/auth");
+      if (data.ok) setUser(data.user);
+    } catch (e) {
+      console.error("Automatic login failed:", e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchUserStatus();
+  }, []);
+
+  if (loading) {
+    return <div style={{ minHeight: "100vh", background: "#0B0E17", color: "#EDEAF5", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading...</div>;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0B0E17", color: "#EDEAF5", fontFamily: "'Inter', sans-serif" }}>
+      <style>{FONT_IMPORT}</style>
+      
+      {tab === "market" && (
+        <div style={{ padding: "20px 16px", textAlign: "center" }}>
+          <h2>VTuber Marketplace</h2>
+          <p style={{ color: "#8B8798" }}>The product listings will be displayed here.</p>
+        </div>
+      )}
+
+      {tab === "panel" && <ArtistPanel user={user} onRefreshUser={fetchUserStatus} />}
+
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#0F1220", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", padding: "8px 10px" }}>
+        {[{ key: "market", label: "Market" }, { key: "panel", label: "Panel" }].map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ flex: 1, background: tab === t.key ? "rgba(178,75,243,0.12)" : "transparent", border: "none", padding: "10px 0", color: tab === t.key ? "#EDEAF5" : "#5C5A6B", fontWeight: 600, borderRadius: 10, cursor: "pointer" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+if (window.Telegram && window.Telegram.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+</script>
+</body>
+  </html>
+  
