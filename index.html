@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTuber Art Market</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
+        .market-container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #4A90E2; margin-bottom: 5px; }
+        .watermark { text-align: center; font-size: 12px; color: #aaa; margin-bottom: 20px; font-weight: bold; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        textarea { height: 120px; resize: none; }
+        .char-count { font-size: 12px; color: #666; text-align: right; margin-top: 5px; }
+        .btn { display: block; width: 100%; padding: 12px; background: #4A90E2; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #357ABD; }
+        .error { color: red; font-size: 14px; margin-top: 5px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="market-container">
+    <h2>VTuber Art Market</h2>
+    <div class="watermark">VTuber Art Market Official</div>
+
+    <form id="uploadForm">
+        <!-- 1. Karusel uchun rasm yuklash -->
+        <div class="form-group">
+            <label for="productImage">Upload Preview Image (Carousel item)</label>
+            <input type="file" id="productImage" accept="image/*" required>
+        </div>
+
+        <!-- 2. Haqiqiy raqamli faylni yuklash -->
+        <div class="form-group">
+            <label for="digitalFile">Upload Digital Product File (.zip, .rar, etc.)</label>
+            <input type="file" id="digitalFile" required>
+        </div>
+
+        <!-- 3. Siz aytgandek, yagona erkin matn maydoni (Maksimal 2000 belgi) -->
+        <div class="form-group">
+            <label for="aboutProduct">About Product</label>
+            <textarea id="aboutProduct" maxlength="2000" placeholder="Describe your product here... (Max 2000 characters). Emojis allowed! 🎉" required></textarea>
+            <div class="char-count"><span id="currentChars">0</span> / 2000</div>
+            <div id="filterError" class="error">Links, emails, phone numbers, or social usernames are strictly forbidden! Only describe the product.</div>
+        </div>
+
+        <button type="submit" class="btn">Publish Product</button>
+    </form>
+</div>
+
+<script>
+    const textarea = document.getElementById('aboutProduct');
+    const currentCharCount = document.getElementById('currentChars');
+    const filterError = document.getElementById('filterError');
+
+    // Belgilar sonini real vaqtda hisoblash
+    textarea.addEventListener('input', () => {
+        currentCharCount.textContent = textarea.value.length;
+        filterError.style.display = 'none';
+    });
+
+    // Front-end darajasida xavfsizlik tekshiruvi (Sumbit bo'lganda)
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const text = textarea.value;
+        
+        // Oddiygina front-end tekshiruvi (linklar, @ belgilari va raqamlar uchun)
+        const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+        const usernameRegex = /@[a-zA-Z0-9_]+/;
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+
+        if (urlRegex.test(text) || usernameRegex.test(text) || emailRegex.test(text)) {
+            e.preventDefault(); // Formani yuborishni to'xtatish
+            filterError.style.display = 'block'; // Xatolikni ko'rsatish
+        }
+    });
+</script>
+
+</body>
+</html>
